@@ -1,3 +1,4 @@
+from code import InteractiveInterpreter
 from Animate import *
 from Metrics import *
 import os
@@ -7,10 +8,15 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 # folder = "data/wedging_gridsearch/size4000_conc0.9_beta0.0001/data.npy" 
 
-folder = "data/polar_init_test_0/data.npy"
+# folder = "data/testing_comma2/data.npy"
+folder = "data/low_nonpolar_adh/data.npy"
+# interactive_animate(folder, view_particles='polar')
 # interactive_plot(folder,timestep=-1, view_particles='polar')
-# animate_in_vivo(folder, view_particles=None)
-interactive_animate(folder, view_particles='polar')
+
+
+folder = "data/invivo_gradtube_longer/data.npy"
+animate_in_vivo(folder, view_particles=None)  
+# animate_in_vivo(folder)
 
 
 # data = np.load(folder, allow_pickle=True)

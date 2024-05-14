@@ -86,7 +86,7 @@ def make_cylinder_cross(n, radius=10, length=50):
     p_flat = (rot_mat @ p_flat[:,:,None]).squeeze()
     q_flat = (rot_mat @ q_flat[:,:,None]).squeeze()
 
-    _, disc1, disc_p, disc_q = make_disc(N = int(n/4))
+    _, disc1, disc_p, disc_q = make_disc(N = int(n/4), radius=radius)
 
     disc1 = (rot_mat[: int(n/4)] @ disc1[:,:,None]).squeeze()
     disc1[:,2] += (length + radius/2) 
@@ -138,8 +138,6 @@ def make_covered_blob(N_polar, N_non, non_polar_radius=35):
 
     return (tot_mask, tot_x, tot_p, tot_q)
 
-
-    
 def make_n_save(N, non_polar_frac, function, size, name, folder='data'):
     data = function(N, non_polar_frac, size)
 

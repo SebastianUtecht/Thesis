@@ -102,9 +102,12 @@ def animate_in_vivo(folder, alpha=10, view_particles=None, interval=1/60):
     mask_lst, x_lst, p_lst, q_lst = data
     p_lst = [p_lst[i]/ np.sqrt(np.sum(p_lst[i] ** 2, axis=1))[:, None] for i in range(len(p_lst))]
 
-    polar_pos_lst  = [x_lst[i][mask_lst[i] == 1] + 0.2 * p_lst[i][mask_lst[i] == 1] for i in range(len(x_lst))]
-    polar_pos_lst += [x_lst[i][mask_lst[i] == 3] + 0.2 * p_lst[i][mask_lst[i] == 3] for i in range(len(x_lst))]
-    polar_pos_lst += [x_lst[i][mask_lst[i] == 4] + 0.2 * p_lst[i][mask_lst[i] == 4] for i in range(len(x_lst))]
+    polar_pos_lst1 = [x_lst[i][mask_lst[i] == 1] + 0.2 * p_lst[i][mask_lst[i] == 1] for i in range(len(x_lst))]
+    polar_pos_lst3 = [x_lst[i][mask_lst[i] == 3] + 0.2 * p_lst[i][mask_lst[i] == 3] for i in range(len(x_lst))]
+    polar_pos_lst4 = [x_lst[i][mask_lst[i] == 4] + 0.2 * p_lst[i][mask_lst[i] == 4] for i in range(len(x_lst))]
+
+    polar_pos_lst = [np.concatenate((polar_pos_lst1[i],polar_pos_lst3[i]), axis=0) for i in range(len(x_lst))]
+    polar_pos_lst = [np.concatenate((polar_pos_lst[i],polar_pos_lst4[i]), axis=0) for i in range(len(x_lst))]
 
     # Make a canvas and add simple view
     canvas = vispy.scene.SceneCanvas(keys='interactive', show=True)
@@ -145,23 +148,41 @@ def animate_in_vivo(folder, alpha=10, view_particles=None, interval=1/60):
         polar_pos = polar_pos_lst[int(iterator) % len(x_lst)]
         if np.sum(mask == 0) > 0:
             scatter1.set_data(x[mask == 0], edge_width=0, face_color='blue', size=2.5)
+            scatter1.visible = True
+        else:
+            scatter1.visible = False
         if np.sum(mask == 1) > 0:
             scatter2.set_data(x[mask == 1], edge_width=0, face_color='white', size=2.5)
             scatter3.set_data(polar_pos , edge_width=0, face_color='red', size=2.5)
+            scatter2.visible = True
+            scatter3.visible = True
+        else:
+            scatter2.visible = False
+            scatter3.visible = False
         if np.sum(mask == 2) > 0:
             scatter4.set_data(x[mask == 2], edge_width=0, face_color='green', size=2.5)
             view.add(scatter4)
-            view.add(scatter5)
+            scatter4.visible = True
+        else:
+            scatter4.visible = False
         if np.sum(mask == 3) > 0:
             scatter5.set_data(x[mask == 3], edge_width=0, face_color='orange', size=2.5)
             view.add(scatter5)
+            scatter5.visible = True
+        else:
+            scatter5.visible = False
         if np.sum(mask == 4) > 0:
-            scatter5.set_data(x[mask == 4], edge_width=0, face_color='yellow', size=2.5)
+            scatter6.set_data(x[mask == 4], edge_width=0, face_color='yellow', size=2.5)
             view.add(scatter6)
+            scatter6.visible = True
+        else:
+            scatter6.visible = False
         if np.sum(mask == 5) > 0:
             scatter7.set_data(x[mask == 5], edge_width=0, face_color='purple', size=2.5)
             view.add(scatter7)
-
+            scatter7.visible = True
+        else:
+            scatter7.visible = False
         
     timer = app.Timer(interval=interval)
     timer.connect(update)
