@@ -55,8 +55,8 @@ class Simulation:
         self.avg_q          = sim_dict['avg_q']
         self.iREC_evo, self.iREC_evo_tot_time, self.polar_time  = self.make_iREC_evolution(sim_dict['iREC_time_arr'])
         self.recruitment_stop = sim_dict['recruitment_stop'] 
-        self.iREC_idx  = torch.tensor([0],dtype=torch.int, device=self.device)
-        self.iREC_timing = torch.tensor([0],dtype=torch.int, device=self.device)
+        self.iREC_idx  = torch.tensor([],dtype=torch.int, device=self.device)
+        self.iREC_timing = torch.tensor([],dtype=torch.int, device=self.device)
 
         self.vesicle_formation = False
         self.tube_formation    = False
@@ -75,9 +75,9 @@ class Simulation:
         i_pref_time     = int(time_arr[0] / self.dt)
         pref_time       = int(time_arr[1] / self.dt)
         i_ves_time      = int(time_arr[2] / self.dt)
-        ves_time        = int(time_arr[3] /self.dt)
-        i_tube_time     = int(time_arr[4] /self.dt)
-        tot_time        = sum(time_arr)
+        # ves_time       = int(time_arr[3] /self.dt)
+        # i_tube_time    = int(time_arr[4] /self.dt)
+        tot_time        = int((np.array(time_arr) / 0.2).sum())
 
         non_polar_ipref = torch.linspace(self.lambdas[0][0], 1, i_pref_time)
         non_polar_pref  = torch.ones(pref_time)
@@ -168,8 +168,6 @@ class Simulation:
         dx = dx[:, :m]
         idx = idx[:, :m]
 
-        self.init_polarity(x, p, q, p_mask, z_mask, idx)
-
         interaction_mask = torch.cat((p_mask[:,None].expand(p_mask.shape[0], idx.shape[1])[:,:,None], p_mask[idx][:,:,None]), dim=2)
 
         MPC_iREC_mask = torch.sum(interaction_mask == torch.tensor([0,3], device=self.device), dim=2) == 2
@@ -189,7 +187,7 @@ class Simulation:
         pUEC_REC_mask = torch.sum(interaction_mask == torch.tensor([5,4], device=self.device), dim=2) == 2
         pUEC_REC_mask = torch.logical_or( torch.sum(interaction_mask == torch.tensor([4,5], device=self.device), dim=2) == 2, MPC_iREC_mask)
         pUEC_RECiREC_mask = torch.logical_or(pUEC_iREC_mask, pUEC_REC_mask)
-        
+
         # Normalise dx
         d = torch.sqrt(torch.sum(dx**2, dim=2))
         dx = dx / d[:, :, None]
@@ -211,14 +209,15 @@ class Simulation:
         pj = p[idx]
         qi = q[:, None, :].expand(q.shape[0], idx.shape[1], 3)
         qj = q[idx]
+        
+        polar_mask0 = torch.sum(l_i[:,:,1:], dim=2) > 0.0
+        polar_mask1 = torch.sum(l_j[:,:,1:], dim=2) > 0.0
+        interactions_w_polarity = torch.logical_and(polar_mask0, polar_mask1)
 
         if self.vesicle_formation:
             pi_tilde = pi - a_min*dx
             pj_tilde = pj + a_min*dx
-
-            pi_tilde = pi_tilde/torch.sqrt(torch.sum(pi_tilde ** 2, dim=2))[:, :, None]               # The p-tildes are normalized
-            pj_tilde = pj_tilde/torch.sqrt(torch.sum(pj_tilde ** 2, dim=2))[:, :, None]
-
+            
         elif self.tube_formation:
             
             if self.avg_q:
@@ -231,13 +230,24 @@ class Simulation:
             angle_dx = avg_q * ts[:,:,None]
 
             if self.seethru != 0:
-                angle_dx = angle_dx * d[:,:,None]                                                        #Use if using seethru != 0
+                angle_dx = angle_dx * d[:,:,None]
                     
-            pi_tilde = pi + a_min*angle_dx
-            pj_tilde = pj - a_min*angle_dx
+            pi_tilde = pi - a_min*angle_dx
+            pj_tilde = pj + a_min*angle_dx
+            
         else:
             pi_tilde = pi
             pj_tilde = pj
+
+        # print(pi_tilde.shape)
+        # print(pi_tilde[interactions_w_polarity].shape)
+        
+        pi_tilde[interactions_w_polarity] = pi_tilde[interactions_w_polarity]/torch.sqrt(torch.sum(pi_tilde[interactions_w_polarity] ** 2, dim=1))[:, None]               # The p-tildes are normalized
+        pj_tilde[interactions_w_polarity] = pj_tilde[interactions_w_polarity]/torch.sqrt(torch.sum(pj_tilde[interactions_w_polarity] ** 2, dim=1))[:, None]
+
+        # print(pi_tilde.shape)
+        # print(torch.mean(torch.sqrt(torch.sum(pi_tilde[interactions_w_polarity] ** 2, dim=1))))
+        # print(torch.sqrt(torch.sum(pj_tilde ** 2, dim=2)))
 
         S1 = torch.sum(torch.cross(pj_tilde, dx, dim=2) * torch.cross(pi_tilde, dx, dim=2), dim=2)            # Calculating S1 (The ABP-position part of S). Scalar for each particle-interaction. Meaning we get array of size (n, m) , m being the max number of nearest neighbors for a particle
         S2 = torch.sum(torch.cross(pi_tilde, qi, dim=2) * torch.cross(pj_tilde, qj, dim=2), dim=2)            # Calculating S2 (The ABP-PCP part of S).
@@ -261,7 +271,6 @@ class Simulation:
         Vij_sum = torch.sum(Vij)
         if self.UEC_bound_strength:
             pot = self.UEC_bound_potential(x, p_mask)
-            # print(pot)
             Vij_sum += pot
 
         return Vij_sum, int(m)
@@ -370,6 +379,9 @@ class Simulation:
             cells_w_polarity = torch.sum(l[:,1:], dim=1) > 0.0
             p[cells_w_polarity] /= torch.sqrt(torch.sum(p[cells_w_polarity] ** 2, dim=1))[:, None]          # Normalizing p. Only the non-zero polarities are considered.
             q[cells_w_polarity] /= torch.sqrt(torch.sum(q[cells_w_polarity] ** 2, dim=1))[:, None]          # Normalizing q. Only the non-zero polarities are considered.
+            
+            p[~cells_w_polarity] = torch.tensor([0,0,0], device=self.device, dtype=self.dtype)
+            q[~cells_w_polarity] = torch.tensor([0,0,0], device=self.device, dtype=self.dtype)
 
         # Calculate potential
         V, self.true_neighbour_max = self.potential(x, p, q, p_mask, l, a, idx, d)
@@ -395,7 +407,7 @@ class Simulation:
             q.grad.zero_()
             x.grad.zero_()
 
-        if len(self.iREC_timing) > 1:
+        if len(self.iREC_timing) > 0:
             self.iREC_timing += 1
             fin_REC_bool = self.iREC_timing >= self.iREC_evo_tot_time
             if torch.any(fin_REC_bool):
@@ -555,6 +567,7 @@ def save(data_tuple, name, output_folder):
 def run_simulation(sim_dict):
     # Make the simulation runner object:
     data_tuple = sim_dict.pop('data')
+    verbose    = sim_dict.pop('verbose')
     yield_steps, yield_every = sim_dict['yield_steps'], sim_dict['yield_every']
 
     np.random.seed(sim_dict['random_seed'])
@@ -587,15 +600,17 @@ def run_simulation(sim_dict):
 
 
     notes = sim_dict['notes']
-    print('Starting simulation with notes:')
-    print(notes)
+    if verbose:
+        print('Starting simulation with notes:')
+        print(notes)
 
     i = 0
     t1 = time()
 
     for xx, pp, qq, pp_mask in itertools.islice(runner, yield_steps):
         i += 1
-        print(f'Running {i} of {yield_steps}   ({yield_every * i} of {yield_every * yield_steps})   ({len(xx)} cells)', end='\r')
+        if verbose:
+            print(f'Running {i} of {yield_steps}   ({yield_every * i} of {yield_every * yield_steps})   ({len(xx)} cells)', end='\r')
 
         x_lst.append(xx)
         p_lst.append(pp)
@@ -608,7 +623,8 @@ def run_simulation(sim_dict):
         if i % 100 == 0:
             save((p_mask_lst, x_lst, p_lst,  q_lst), name='data', output_folder='data/' + output_folder)
 
-    print(f'Simulation done, saved {yield_steps} datapoints')
-    print('Took', time() - t1, 'seconds')
+    if verbose:
+        print(f'Simulation done, saved {yield_steps} datapoints')
+        print('Took', time() - t1, 'seconds')
 
     save((p_mask_lst, x_lst, p_lst,  q_lst), name='data', output_folder='data/' + output_folder)

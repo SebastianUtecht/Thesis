@@ -50,11 +50,14 @@ def data_plot(mask, x, p, q):
     if sys.flags.interactive != 1:
         vispy.app.run()
 
-data = np.load('data/ubud_mcap_final.npy', allow_pickle=True)
+# data = np.load('data/ubud_mcap_final.npy', allow_pickle=True)
 
 # data = (data[0][-1], data[1][-1], data[2][-1], data[3][-1])
 # data[1][:,-1] -= 37.5
 # data[1][:,1] += 17.5
+
+
+
 
 data_plot(*data)
 

@@ -67,41 +67,41 @@ def make_disc(N, radius=10):
 
     p = np.repeat(np.array([[0.0,0.0,1.0]]),N, axis=0)
     q = np.cross(x,p)
-    q /= np.sqrt(np.sum(p**2, axis=1))[:,None]
+    q /= np.sqrt(np.sum(q**2, axis=1))[:,None]
 
     mask = np.ones(N)
 
     disc_data = (mask, x, p, q)
     return disc_data
 
-def make_cylinder_cross(n, radius=10, length=50):
+def make_cylinder_cross(n_v, n_h, n_c, v_len, h_len, radius=7):
 
-    x_up, p_up, q_up        = init_cylinder(n, radius, length)
-    x_flat, p_flat, q_flat  = init_cylinder(n, radius, length)
+    x_up, p_up, q_up        = init_cylinder(n_v, radius, v_len)
+    x_flat, p_flat, q_flat  = init_cylinder(n_h, radius, h_len)
 
     rot_mat = np.array([[1.0,0.0,0.0],[0.0,0.0, -1],[0,1, 0]])
-    rot_mat = np.repeat(rot_mat[None], n, axis=0)
+    rot_mat = np.repeat(rot_mat[None], n_h, axis=0)
 
     x_flat = (rot_mat @ x_flat[:,:,None]).squeeze()
     p_flat = (rot_mat @ p_flat[:,:,None]).squeeze()
     q_flat = (rot_mat @ q_flat[:,:,None]).squeeze()
 
-    _, disc1, disc_p, disc_q = make_disc(N = int(n/4), radius=radius)
+    _, disc1, disc_p, disc_q = make_disc(N = n_c, radius=radius)
 
-    disc1 = (rot_mat[: int(n/4)] @ disc1[:,:,None]).squeeze()
-    disc1[:,2] += (length + radius/2) 
+    disc1 = (rot_mat[: n_c] @ disc1[:,:,None]).squeeze()
+    disc1[:,2] += (v_len + radius/2) 
     disc2 = disc1.copy()
-    disc1[:,1] += length/2
-    disc2[:,1] -= length/2
+    disc1[:,1] += h_len/2
+    disc2[:,1] -= h_len/2
     
-    disc_p = (rot_mat[: int(n/4)] @ disc_p[:,:,None]).squeeze()
-    disc_q = (rot_mat[: int(n/4)] @ disc_q[:,:,None]).squeeze()
+    disc_p = (rot_mat[: n_c] @ disc_p[:,:,None]).squeeze()
+    disc_q = (rot_mat[: n_c] @ disc_q[:,:,None]).squeeze()
     
     disc2_p = + disc_p.copy()
     disc1_p = - disc_p.copy()
 
-    x_flat[:,1] += length/2
-    x_flat[:,2] += (length + radius/2) 
+    x_flat[:,1] += h_len/2
+    x_flat[:,2] += (v_len + radius/2) 
 
     x = np.concatenate((x_up, x_flat, disc1, disc2), axis=0)
     p = np.concatenate((p_up, p_flat, disc1_p, disc2_p), axis=0)
@@ -126,6 +126,31 @@ def make_random_sphere(N, non_polar_frac , radius=35):
 
     sphere_data = (mask, x, p, q)
     return sphere_data
+
+def make_2_spheres(N1, N2, N_np=0, x_trans=30, radius=1):
+
+    p_mask1, x1, p1, q1 = make_random_sphere(N1, 0, radius=radius)
+    p_mask2, x2, p2, q2 = make_random_sphere(N2, 0, radius=radius)
+
+    x2 = x2 + np.array([x_trans, 0,  0])
+
+    x       = np.concatenate((x1, x2), axis=0)
+    p_mask  = np.concatenate((p_mask1, p_mask2), axis=0) 
+    p = np.concatenate((p1, p2), axis=0)
+    q = np.concatenate((q1, q2), axis=0)
+    
+    if N_np:
+        p_mask_np, x_np, p_np, q_np = make_random_sphere(N_np, 1, radius=x_trans*0.8)
+        x_np = x_np + np.array([x_trans/2, 0, 0])
+        
+        p_mask = np.concatenate((p_mask, p_mask_np), axis=0)
+        x = np.concatenate((x, x_np), axis=0)
+        p = np.concatenate((p, p_np), axis=0)
+        q = np.concatenate((q, q_np), axis=0)
+
+    data = (p_mask, x, p, q)
+
+    return data
 
 def make_covered_blob(N_polar, N_non, non_polar_radius=35):
     polar_blob      = make_random_sphere(N_polar, non_polar_frac=0.0, radius=0.1)

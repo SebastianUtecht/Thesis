@@ -30,7 +30,6 @@ class Simulation:
         self.max_cells      = sim_dict['max_cells']
         self.prolif_delay   = sim_dict['prolif_delay']
         self.abs_s2s3       = sim_dict['abs_s2s3']
-        self.min0_s1        = sim_dict['min0_s1']
         self.yield_every    = sim_dict['yield_every']
         self.bound_radius   = sim_dict['bound_radius']
         self.random_seed    = sim_dict['random_seed']
@@ -181,8 +180,6 @@ class Simulation:
             if self.abs_s2s3:
                 S2 = torch.abs(S2)
                 S3 = torch.abs(S3)
-            if self.min0_s1:
-                S1[S1 < 0] = 0.0 
             if self.alpha != 0 and self.vesicle_formation:
                 lam[:,:,3] = 0.0
 
@@ -299,10 +296,13 @@ class Simulation:
 
         # Time-step
         with torch.no_grad():
-            x += -x.grad * self.dt + self.eta * torch.empty(*x.shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
+            x_grad = x.grad
+            p_grad = p.grad
+            q_grad = q.grad
+            x[p_mask != 1] += -x_grad[p_mask != 1] * self.dt + self.eta * torch.empty(*x[p_mask != 1].shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
             if not(self.warming_up) and not(self.pre_polar):
-                p += -p.grad * self.dt + self.eta * torch.empty(*x.shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
-                q += -q.grad * self.dt + self.eta * torch.empty(*x.shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
+                p[p_mask != 1] += -p_grad[p_mask != 1] * self.dt + self.eta * torch.empty(*x[p_mask != 1].shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
+                q[p_mask != 1] += -q_grad[p_mask != 1] * self.dt + self.eta * torch.empty(*x[p_mask != 1].shape, dtype=self.dtype, device=self.device).normal_() * self.sqrt_dt
 
                 p.grad.zero_()
                 q.grad.zero_()
@@ -383,7 +383,8 @@ class Simulation:
         if torch.sum(beta) < 1e-5:
             return False, x, p, q, p_mask, beta
         
-        within_sphere = torch.sum((torch.tensor([0.0,-17.5,20.0], device=self.device) -  x)**2, dim=1) < 15**2
+        #TODO: INPUT CORRECT SPHERE FOR NEW UBUD
+        within_sphere = torch.sum((torch.tensor([0.0,-5,12], device=self.device) -  x)**2, dim=1) < 8**2
 
         beta *= within_sphere
 

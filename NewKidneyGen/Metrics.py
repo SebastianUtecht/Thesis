@@ -35,7 +35,7 @@ def find_true_neighbours(d, dx, seethru):
     z_mask = torch.cat(z_masks, dim=0)
     return z_mask
 
-def adj_lst(x, p_mask=None, seethru=0, k=50):
+def get_adj_lst(x, p_mask=None, seethru=0, k=50):
     d, idx = find_potential_neighbours(x, k=k)
     idx = torch.tensor(idx, dtype=torch.long, device=device)
     d = torch.tensor(d, dtype=torch.float, device=device)
@@ -54,7 +54,7 @@ def adj_lst(x, p_mask=None, seethru=0, k=50):
     idx = idx[:, :m]
 
     polar_idx       = idx[p_mask == 1]
-    return z_mask[p_mask == 1].detach().to("cpu").numpy(), polar_idx.detach().to("cpu").numpy()
+    return z_mask[p_mask == 1], polar_idx, p_mask #.detach().to("cpu").numpy()
 
 def fix_polar_adj_arr(adj_arr, p_mask, z_mask):
     adj_arr[z_mask == 0] = -1
@@ -77,15 +77,35 @@ def make_graph(edge_lst):
     G.remove_edges_from(nx.selfloop_edges(G))
     return G
 
+def get_edge_lst(polar_adj_arr, polar_z_mask, p_mask):
+    polar_adj_arr[polar_z_mask == 0] = -1
+    polar_idx = torch.argwhere(p_mask == 1).squeeze()
+    non_polar_mask = torch.any(polar_adj_arr[:,:,None] == polar_idx, dim=2)
+    double_mask = non_polar_mask * polar_z_mask
+
+    masked_adj_arr = polar_adj_arr * double_mask
+    edge_lst = torch.cat((polar_adj_arr[:,0][:,None].expand((polar_adj_arr.shape[0], polar_adj_arr.shape[1])).reshape(-1,1) , masked_adj_arr.reshape(-1,1)), dim=1) 
+    edge_lst = edge_lst[edge_lst[:,1] != 0]
+
+    return edge_lst
+
 def get_percolation(x, p_mask, seethru=0):
-    z_mask, polar_adj_arr = adj_lst(x, p_mask, seethru=seethru)
+    polar_z_mask, polar_adj_arr, p_mask = get_adj_lst(x, p_mask, seethru=seethru)
     n_polar_particles = polar_adj_arr.shape[0]
-    polar_adj_arr = fix_polar_adj_arr(polar_adj_arr, p_mask, z_mask)
-    edge_lst = make_edge_lst(polar_adj_arr)
-    graph = make_graph(edge_lst)
+    edge_lst =  get_edge_lst(polar_adj_arr, p_mask = p_mask, polar_z_mask = polar_z_mask)
+    graph = make_graph(edge_lst.detach().cpu().numpy())
     max_cluster_size = len(max(nx.connected_components(graph), key=len))
     perc_prob = max_cluster_size / n_polar_particles
     return perc_prob
+
+def get_num_clusters(x, p_mask,threshold = 10, seethru=0):
+    polar_z_mask, polar_adj_arr, p_mask = get_adj_lst(x, p_mask, seethru=seethru)
+    edge_lst =  get_edge_lst(polar_adj_arr, p_mask = p_mask, polar_z_mask = polar_z_mask)
+    graph = make_graph(edge_lst.detach().cpu().numpy())
+    lst = []
+    for comp in nx.connected_components(graph):
+        lst.append(len(comp) > threshold)
+    return sum(lst)
 
 def get_branching(x, q, p_mask, threshold=0.1, seethru=0):
     _, idx = adj_lst(x, p_mask, seethru=seethru)
