@@ -104,7 +104,12 @@ def animate_in_vivo(folder, alpha=10, sphere=None , interval=1/60, extended_idx=
     
     # Getting the data
     data = np.load(folder, allow_pickle=True)
-    mask_lst, x_lst, p_lst, q_lst = data
+
+    if len(data) == 6:
+        mask_lst, x_lst, p_lst, _, _, _ = data
+    else:
+        mask_lst, x_lst, p_lst, _ = data
+        
     p_lst = [p_lst[i]/ np.sqrt(np.sum(p_lst[i] ** 2, axis=1))[:, None] for i in range(len(p_lst))]
 
     polar_pos_lst1 = [x_lst[i][mask_lst[i] == 1] + 0.2 * p_lst[i][mask_lst[i] == 1] for i in range(len(x_lst))]
@@ -136,6 +141,7 @@ def animate_in_vivo(folder, alpha=10, sphere=None , interval=1/60, extended_idx=
         scatter8 = visuals.Markers(scaling=True, alpha=alpha, spherical=True)
         scatter9 = visuals.Markers(scaling=True, alpha=alpha, spherical=True)
         scatter10 = visuals.Markers(scaling=True, alpha=alpha, spherical=True)
+        scatter11 = visuals.Markers(scaling=True, alpha=alpha, spherical=True)
 
     if np.sum(mask_lst[0] == 1) > 0:
         scatter1.set_data(x_lst[0][mask_lst[0] == 1], edge_width=0, face_color='blue', size=2.5)
@@ -234,6 +240,13 @@ def animate_in_vivo(folder, alpha=10, sphere=None , interval=1/60, extended_idx=
                 scatter10.visible = True
             else:
                 scatter10.visible = False
+
+            if np.sum(mask == 9) > 0:
+                scatter11.set_data(x[mask == 9], edge_width=0, face_color='black', size=2.5)
+                view.add(scatter11)
+                scatter11.visible = True
+            else:
+                scatter11.visible = False
             
     timer = app.Timer(interval=interval)
     timer.connect(update)

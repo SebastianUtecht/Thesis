@@ -35,13 +35,11 @@ import pickle
 
 # data = np.load('data/playground_data_smaller.npy', allow_pickle=True)
 # p_mask, x, _, _ = data
-# general_visualize(x, p_mask, sphere=[[[0,7,0],1]])
 
-# general_visualize(x, p_mask, cube=[[12.5,20,10], [5,5]], sphere=[[[0,5,5],1]])
-
+# general_visualize(x, p_mask, sphere=[[[0,-9,13],10]])
 
 # x_range_mask = (x[:,0] > x_range[0]) *(x[:,0] < x_range[1])
-# p_mask = p_mask[x_range_mask]
+# p_mask = p_mask[x_range_mask]s
 # x = x[x_range_mask]
 # p = p[x_range_mask]
 # q = q[x_range_mask]
@@ -65,7 +63,7 @@ import pickle
 # p_mask_sphere = data1[0]
 # x_sphere = data1[1]
 # x_sphere[:,2] -= 4
-# x_sphere[:,1] -=4
+# x_sphere[:,1] -=4s
 
 # x       = np.concatenate((x, x_sphere),axis=0)
 # p_mask  = np.concatenate((p_mask, p_mask_sphere),axis=0)
@@ -84,7 +82,7 @@ import pickle
 #     with open(f'{output_folder}/{name}.npy', 'wb') as f:
 #         pickle.dump(data_tuple, f)
 
-# save(combined_data, 'playground_data', 'data')
+# save(combined_data, 'playground_data', 'data')a
 # folder = 'data/playground_data.npy'
 # data = np.load(folder, allow_pickle=True)
 # p_mask, x, _, _ = data
@@ -100,24 +98,46 @@ import pickle
 
 # folder = f"datWdata.npy"
 
-folder = f'data/cube_bound_1/data.npy'
+# folder = f'data/upper_cube_bound_2/data.npy'
+# folder = f'data/aug_cube_bound_tests_higher/data.npy'
+# animate_in_vivo(folder, extended_idx=True) 
 
-animate_in_vivo(folder, extended_idx=True) 
+# data = np.load(folder, allow_pickle=True)
+# p_mask, x, _, _ = data
+# tstep = 500
+# general_visualize(x[tstep], p_mask[tstep], sphere=[[[0,5,0],6]])
+
 
 # conc_lst = np.linspace(0.5, 0.99, 15)
 # conc = conc_lst[3]
 # print(conc)
 
 
-# folder = f"data/vitro_gradves_grid/conc_{conc:.2f}/data.npy"
+# folder = f"data/primed_MPC_4/data.npy"
 
-# interactive_plot(folder,timestep=30, view_particles='polar')
+# interactive_animate(folder, view_particles='polar')
 
 # folder = "data/diff_coef_test_4/diff_coef_2/data.npy"
 
 # interactive_plot(folder, timestep=-1, polar_idx=4)
-# folder = "data/small_sphere_test/data.npy"
-# animate_in_vivo(folder)
+diff = 100
+str = 10
+# folder = f"new_data/chemo_gridsearch/diff_{diff}_str{str}/data.npy"
+# folder = "data/INF_TEST_DELETE_AFTER/data.npy"
+uec_str = 0.2
+mpc_str = 0.1
+
+# folder = f"new_data/testing_final_2/data.npy"
+# folder = f'new_data/UEC_noise_grid/uec{uec_str}_mpc{mpc_str}/data.npy'
+# data = np.load(folder, allow_pickle=True)
+folder = f"new_data/testing_loose_bounds_tot/testing_loose_bounds_14/data.npy"
+# p_mask, x, _, _ = data
+# p_mask = p_mask[1020]
+# p_mask = x[1020]
+# general_visualize(x, p_mask)
+
+animate_in_vivo(folder, extended_idx=True)  
+
 
 # data = np.load(folder, allow_pickle=True)
 # mask_lst, x_lst, _, _ = data
@@ -127,4 +147,4 @@ animate_in_vivo(folder, extended_idx=True)
 # z_mask, polar_adj_arr = adj_lst_sphere(x, p_mask, radius=5)
 # idx = fix_polar_adj_arr(polar_adj_arr, p_mask, z_mask)ww
 
-# visualize_neighbors(x, p_mask, idx)aw
+# visualize_neighbors(x, p_mask, idx)

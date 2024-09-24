@@ -73,7 +73,6 @@ class Simulation:
 
         self.REC_IC_ratio   = sim_dict['REC_IC_ratio']
         self.max_cells      = sim_dict['max_cells']
-        self.prolif_delay   = sim_dict['prolif_delay']
         self.abs_s2s3       = sim_dict['abs_s2s3']
         self.diff_coef      = sim_dict['diff_coef']
         self.WNT_str        = sim_dict['WNT_str']
@@ -100,7 +99,18 @@ class Simulation:
         self.partition_delay    = sim_dict['partition_delay']
         self.partition_mask     = None
         self.partition_counter  = 0
-        # self.partition_angle    = sim_dict['partition_angle']  # For later
+        self.recruitment_sim    = sim_dict['recruitment_sim']
+        self.recruit_finished   = sim_dict['recruit_finished']        
+        if self.recruitment_sim:
+            self.recruitment_loc     = torch.tensor(self.recruitment_sim[0], device=self.device, dtype=self.dtype)
+            self.recruitment_radius  = self.recruitment_sim[1]
+        self.recruitment_start = sim_dict['recruitment_start']
+        self.augment_cube = sim_dict['augment_cube']
+        if self.augment_cube:
+            self.cube_ledge = self.augment_cube[0]
+            self.ledge_width= self.augment_cube[1]
+            self.ledge_ext = self.bound_ext + torch.tensor([0.0,self.ledge_width,0.0], device=self.device, dtype=self.dtype)
+        self.recruitment_num = sim_dict['recruitment_num']
 
         self.sim_time   = 0
         self.vesicle_formation = False
@@ -210,10 +220,23 @@ class Simulation:
             return v_add
 
         elif self.bound_type == 'cube':
-            bound_dists = torch.abs(self.bound_loc - x)
-            bound_dists = torch.max(bound_dists - self.bound_ext, torch.zeros_like(bound_dists))
-            v_add       = (1/2 * self.bound_str * bound_dists**2)
-            return torch.sum(v_add)
+            bound_dists = x - self.bound_loc
+            if not self.augment_cube:
+                bound_dists = torch.abs(bound_dists)
+                bound_dists = torch.max(bound_dists - self.bound_ext, torch.zeros_like(bound_dists))
+                v_add       = (1/2 * self.bound_str * bound_dists**2)
+            else:
+                above_ledge_mask = bound_dists[:,2] > - self.cube_ledge
+                bound_dists = torch.abs(bound_dists)
+                bound_dists[above_ledge_mask] = torch.max(bound_dists[above_ledge_mask] - self.bound_ext, torch.zeros_like(bound_dists[above_ledge_mask]))
+                bound_dists[~above_ledge_mask] = torch.max(bound_dists[~above_ledge_mask] - self.ledge_ext, torch.zeros_like(bound_dists[~above_ledge_mask]))
+                v_add       = (1/2 * self.bound_str * bound_dists**2)
+            
+            v_add       = torch.sum(v_add)
+            upper_z_potential = torch.where( x[:,2] > (self.bound_loc[2]), 1/2 * self.bound_str * (x[:,2] - self.bound_loc[2])**2, 0.0)
+            upper_z_potential = torch.sum(upper_z_potential)
+
+            return v_add + upper_z_potential          
 
     
     def gauss_grad(self, d, dx, ives_idx, connection_mask):
@@ -241,6 +264,16 @@ class Simulation:
             tot_WNT_grad[torch.sum(tot_WNT_grad, dim=1) != 0.0] /= torch.sqrt(torch.sum(tot_WNT_grad[torch.sum(tot_WNT_grad, dim=1)  != 0.0] ** 2, dim=1))[:, None]
         return tot_WNT_grad, WNT_x_dists
 
+    # def WNT_grad_pUEC(self, x, dx, idx, p_mask,  z_mask, tube_idx):
+    #     with torch.no_grad():
+    #         tube_x, tube_dx, tube_idx_idx = x[tube_idx], dx[tube_idx], idx[tube_idx]
+    #         tube_neigh_pos  = x[tube_idx_idx]
+    #         tube_z          = z_mask[tube_idx]
+
+    #         #average distance from tube_x to x[p_mask == 5]
+    #         WNT_x_dists     = (x[p_mask == 5] - tube_x)**2
+    #         WNT_x_dists     = torch.sqrt(torch.sum((self.activation_loc - tube_x)**2, dim=1))
+            
     
     def potential(self, x, p, q, p_mask, l, a, idx, d, tstep):
         # Find neighbours
@@ -282,8 +315,10 @@ class Simulation:
         iREC_iREC_mask       = torch.sum(interaction_mask == torch.tensor([3,3], device=self.device), dim=2) == 2
         REC_iREC_mask        = torch.sum(interaction_mask == torch.tensor([3,4], device=self.device), dim=2) == 2
         REC_iREC_mask        = torch.logical_or( torch.sum(interaction_mask == torch.tensor([4,3], device=self.device), dim=2) == 2, REC_iREC_mask)
-        # MAKE INTERACTION BETWEEN REC-REC
         RECiREC_RECiREC_mask = torch.logical_or(iREC_iREC_mask, REC_iREC_mask)
+
+        REC_REC_mask = torch.sum(interaction_mask == torch.tensor([4,4], device=self.device), dim=2) == 2
+        allREC_mask  = torch.logical_or(RECiREC_RECiREC_mask, REC_REC_mask) 
 
         # Normalise dx
         d = torch.sqrt(torch.sum(dx**2, dim=2))
@@ -337,14 +372,16 @@ class Simulation:
                 l_min[mask] = torch.tensor([self.iREC_nopolar_attr_str, 0, 0, 0], device=self.device, dtype=self.dtype)
 
         # Setting the interaction between pUEC and l3 activated iREC and REC higher to facilitate attachment of the tube.
-        if torch.sum(p_mask == 4) < self.recruitment_stop:
-            mask = l_min[pUEC_RECiREC_mask][:,3] > 0.0 
-            pUEC_REC_tensor = torch.tensor([self.pUEC_REC_str, 0, 0, 0], device=self.device, dtype=self.dtype)
-            l3_pUEC_REC_tensor = torch.tensor([self.l3_pUEC_REC_str, 0, 0, 0], device=self.device, dtype=self.dtype)
-            l_min[pUEC_RECiREC_mask] = torch.where(mask[:,None] ,l3_pUEC_REC_tensor, pUEC_REC_tensor)
-        else:
-            l_min[pUEC_RECiREC_mask] = self.lambdas[1]
-            a_min                    = self.alphas[4]
+        # if torch.sum(p_mask == 4) < self.recruitment_stop:
+
+        mask = l_min[pUEC_RECiREC_mask][:,3] > 0.0 
+        pUEC_REC_tensor = torch.tensor([self.pUEC_REC_str, 0, 0, 0], device=self.device, dtype=self.dtype)
+        l3_pUEC_REC_tensor = torch.tensor([self.l3_pUEC_REC_str, 0, 0, 0], device=self.device, dtype=self.dtype)
+        l_min[pUEC_RECiREC_mask] = torch.where(mask[:,None] ,l3_pUEC_REC_tensor, pUEC_REC_tensor)
+
+        # else:
+        #     l_min[pUEC_RECiREC_mask] = self.lambdas[1]
+        #     a_min                    = self.alphas[4]
 
         # Setting the attraction between not polarized iREC cells and pUEC to standard UEC-REC values so they don't flock into the start of the tube 
         # mask = ~torch.any(l_min[pUEC_RECiREC_mask][:,1:], dim=1)
@@ -401,10 +438,8 @@ class Simulation:
         if self.tube_wall_str != None:
             with torch.no_grad():
                 wall_mask = torch.sum(pi * pj , dim = 2) < 0.0
-                REC_REC_mask = torch.sum(interaction_mask == torch.tensor([4,4], device=self.device), dim=2) == 2
-                allREC_mask  = torch.logical_or(RECiREC_RECiREC_mask, REC_REC_mask) 
                 wall_mask = torch.logical_and(wall_mask , allREC_mask)
-                l[wall_mask] = torch.tensor([self.tube_wall_str, 0.0, 0.0, 0.0], device=self.device, dtype=self.dtype)
+                l_min[wall_mask] = torch.tensor([self.tube_wall_str, 0.0, 0.0, 0.0], device=self.device, dtype=self.dtype)
 
         S = l_min[:,:,0] + l_min[:,:,1] * S1 + l_min[:,:,2] * S2 + l_min[:,:,3] * S3
         
@@ -422,9 +457,9 @@ class Simulation:
             WNT_grad, WNT_x_dists   = self.WNT_grad(x=x, dx=dx, idx=idx, z_mask=z_mask, tube_idx=tube_idx)
             S4          = (1.0 - torch.sum(q[tube_idx] * WNT_grad, dim=1)**2)
             cells_affected = WNT_x_dists < self.WNT_c
+            # S4         *= torch.exp(-d[tube_idx]/5)  #KOMMENTER IND HVIS DU VIL HA' POTENTIALET SOM SKREVET I PAPERET
 
             # S4          = torch.sum(S4[:,None] * z_mask[tube_idx], dim=1) / torch.sum(z_mask[tube_idx], dim=1)
-            # S4         *= torch.exp(-d[tube_idx]/5)  #KOMMENTER IND HVIS DU VIL HA' POTENTIALET SOM SKREVET I PAPERET
             
             Vij_sum    -= self.WNT_str * torch.sum(cells_affected * S4)
         
@@ -446,6 +481,9 @@ class Simulation:
         a = torch.zeros(x.shape[0], dtype=self.dtype, device=self.device)
         self.beta_tensor   = torch.zeros(x.shape[0], dtype=self.dtype, device=self.device)
         p_mask = torch.tensor(p_mask, dtype=torch.int, device=self.device)
+
+        for i in range(len(self.betas)):
+            self.beta_tensor[p_mask == i] = self.betas[i]
         
         sphere_avg_pos = torch.mean(x[p_mask == 3], dim=0)
         x_trans_vec  = sphere_avg_pos - self.activation_loc
@@ -473,7 +511,7 @@ class Simulation:
 
             self.partition_mask[cells_in_partition] = i
         
-        self.partition_times = torch.arange(1,self.num_partitions+1) * self.partition_delay
+        self.partition_times = torch.arange(0,self.num_partitions) * self.partition_delay
 
         for i in range(len(self.lambdas)):
             l[p_mask == i] = self.lambdas[i]
@@ -502,10 +540,6 @@ class Simulation:
 
     def time_step(self, x, p, q, p_mask, l, a, tstep):
         self.sim_time += self.dt
-        
-        if torch.sum(self.betas) > 0 and torch.sum(p_mask == 4) < self.recruitment_stop:
-            for i in range(len(self.betas)):
-                self.beta_tensor[p_mask == i] = self.betas[i]
 
         if tstep == (self. seethru_stop + 1):
             self.seethru = 0
@@ -583,6 +617,7 @@ class Simulation:
             if torch.any(fin_REC_bool):
                 fin_REC_idx = self.iREC_idx[fin_REC_bool]
                 p_mask[fin_REC_idx] = 4
+                self.beta_tensor[fin_REC_idx] = self.betas[4]
                 removal_idx = torch.argwhere(torch.isin(self.iREC_idx, fin_REC_idx))[:,0]
                 self.iREC_idx = self.torch_delete(self.iREC_idx, removal_idx)
                 self.iREC_timing = self.torch_delete(self.iREC_timing, removal_idx)
@@ -606,6 +641,8 @@ class Simulation:
             IC_cells = changing_cells_idx[~REC_IC_mask]
             p_mask[iREC_cells] = 3
             p_mask[IC_cells] = 2
+            self.beta_tensor[iREC_cells] = self.betas[3]
+            self.beta_tensor[IC_cells] = self.betas[2]
 
             if not(torch.any(self.iREC_idx)):
                 self.iREC_idx   = iREC_cells.clone()
@@ -680,8 +717,102 @@ class Simulation:
 
             return new_pos
 
+    def recruitment_sim_func(self, x, p, q, p_mask, l, a):
+        
+        #Comment in for use of recruitment radius instead of cells furthest away proliferation 
+        # dists = torch.sqrt(torch.sum((x - self.recruitment_loc) ** 2, dim=1))
+        # cells_in_radius = dists < self.recruitment_radius
+
+        #Comment in for use of cells furthest away proliferation
+        dists = torch.sqrt(torch.sum((x - self.activation_loc) ** 2, dim=1))
+        _, prolif_idx = torch.topk(dists * (p_mask == 3), self.recruitment_num, largest=True)
+        cells_in_radius = torch.zeros(len(x), device=self.device, dtype=torch.int)
+        cells_in_radius[prolif_idx] = 1
+
+
+        if torch.sum(cells_in_radius) == 0:
+            return False, x, p, q, p_mask, l, a, self.beta_tensor
+
+        beta_copy = self.beta_tensor.clone()
+        beta = self.beta_tensor * cells_in_radius.float()
+
+        if torch.sum(beta) < 1e-5:
+            return False, x, p, q, p_mask, l, a, beta
+
+        # set probability according to beta and dt
+        d_prob = beta * self.dt
+        # flip coins
+        draw = torch.empty_like(beta).uniform_()
+        # find successes
+        events = draw < d_prob
+        division = False
+
+        if torch.sum(events) > 0:
+            with torch.no_grad():
+                division = True
+                # find cells that will divide
+                idx = torch.nonzero(events)[:, 0]
+
+                if self.recruit_finished:
+                    x0      = x[idx, :]
+                    p0      = p[idx, :]
+                    q0      = q[idx, :]
+
+                    l0      = self.lambdas[4] * torch.ones_like(l[idx, :])
+                    a0      = self.alphas[4] * torch.ones_like(a[idx])
+                    p_mask0 = 4 * torch.ones_like(p_mask[idx])
+                    b0      = self.betas[4] * torch.ones_like(beta[idx])    
+
+                else:
+                    x0      = x[idx, :]
+                    p0      = p[idx, :]
+                    q0      = q[idx, :]
+                    l0      = l[idx, :]
+                    a0      = a[idx]
+                    p_mask0 = p_mask[idx]
+                    b0      = beta[idx]
+                    
+                    new_iREC_idx    = torch.argwhere(torch.isin(idx, torch.argwhere(p_mask ==3)[:,0]))[:,0]
+                    if torch.numel(new_iREC_idx) > 0:
+                        new_iREC_idx        = len(x) + new_iREC_idx - 1
+                        self.iREC_idx       = torch.cat((self.iREC_idx, new_iREC_idx), dim=0)
+                        self.iREC_timing    = torch.cat((self.iREC_timing, torch.zeros_like(new_iREC_idx)), dim=0)
+
+                # make a random vector and normalize to get a random direction
+                move = torch.zeros_like(x0)
+                move[:,1] = -2
+
+                # place new cells
+                x0 = x0 + move
+
+                # append new cell data to the system state
+                x = torch.cat((x, x0))
+                p = torch.cat((p, p0))
+                q = torch.cat((q, q0))
+                l = torch.cat((l, l0))
+                a = torch.cat((a, a0))
+                p_mask = torch.cat((p_mask, p_mask0))
+                beta = torch.cat((beta_copy, b0))
+
+        x.requires_grad = True
+        p.requires_grad = True
+        q.requires_grad = True
+
+        return division, x, p, q, p_mask, l, a, beta
+
+
+
     def cell_division(self, x, p, q, p_mask, l, a, beta_decay = 1.0):
 
+        if self.recruitment_sim:
+            num_compleated_cells = torch.sum(p_mask == 4)
+            total_renal_cells = num_compleated_cells + torch.sum(p_mask == 3) 
+            if num_compleated_cells >= self.recruitment_start and total_renal_cells < self.recruitment_stop:
+                division, x, p, q, p_mask, l, a, beta = self.recruitment_sim_func(x, p, q, p_mask, l, a)
+                return division, x, p, q, p_mask, l, a, beta
+            else:
+                return False, x, p, q, p_mask, l, a, self.beta_tensor
+            
         beta = self.beta_tensor
         dt = self.dt
 
