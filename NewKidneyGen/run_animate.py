@@ -127,10 +127,10 @@ str = 10
 uec_str = 0.2
 mpc_str = 0.1
 
-# folder = f"new_data/testing_final_2/data.npy"
+folder = f"new_data/testing_final_3/data.npy"
 # folder = f'new_data/UEC_noise_grid/uec{uec_str}_mpc{mpc_str}/data.npy'
 # data = np.load(folder, allow_pickle=True)
-folder = f"new_data/testing_loose_bounds_tot/testing_loose_bounds_14/data.npy"
+# folder = f"new_data/testing_loose_bounds_tot/testing_loose_bounds_14/data.npy"
 # p_mask, x, _, _ = data
 # p_mask = p_mask[1020]
 # p_mask = x[1020]
