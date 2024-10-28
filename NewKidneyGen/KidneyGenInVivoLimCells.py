@@ -134,11 +134,13 @@ class Simulation:
         self.diff_coef      = sim_dict['diff_coef']         # Diffusion coefficient for WNT gradient
         self.WNT_str        = sim_dict['WNT_str']           # Strength of WNT gradient
         self.WNT_c          = sim_dict['WNT_c']             # Distance at which the WNT gradient will not influence direction of tubulogenisis 
+        self.no_assim_WNT   = sim_dict['no_assim_WNT']      # Boolean for if the WNT gradient should be used in the assimilation phase
         self.avg_q          = sim_dict['avg_q']             # Boolean which decides if the average q should be used in the potential. Most often False
         self.gamma          = sim_dict['gamma']             # Strength of the potential initially making the cells form a vesicle
         self.chemo_atr_N    = sim_dict['chemo_atr_N']       # Number of iREC cells that exude a chemoattractant
         self.chemo_diff_coef= sim_dict['chemo_diff_coef']   # Diffusion coefficient of the chemoattractant
-        self.chemo_atr_str  = sim_dict['chemo_atr_str']     # Strength of the chemoattractant
+        self.chemo_atr_str  = sim_dict['chemo_atr_str']                # Strength of the chemoattractant
+        self.chemo_attract_iREC: bool = sim_dict['chemo_attract_iREC'] # Boolean for if the chemoattractant should be used for iREC cells
         
         # Stuff that is is initalized empty
         self.beta_tensor = None                 # Tensor for the beta values of the cells. Initialized in the init_cells() function       
@@ -588,18 +590,24 @@ class Simulation:
             Vi       = torch.sum(self.gamma * p * gauss_grad, dim=1)
             Vi       = torch.nan_to_num(Vi, nan=0.0, posinf=0.0, neginf=0.0)
             Vij_sum -= torch.sum(Vi)
-        
+    
         # Applying the WNT-gradient potential for the tube formation
-        tube_idx = torch.argwhere(l[:,-1] > 0.0)[:,0]
+        tube_mask = l[:,-1] > 0.0
+        if self.no_assim_WNT:
+            tube_mask *= (~(p_mask_true[tube_idx] ==  7)) * (~(p_mask_true[tube_idx] ==  8)) 
+        tube_idx = torch.argwhere(tube_mask)[:,0]
+
         if self.WNT_str > 0.0 and len(tube_idx) > 0:
             WNT_grad_, WNT_x_dists   = self.WNT_grad(x=x, dx=dx, idx=idx, z_mask=z_mask, tube_idx=tube_idx)
             S4          = (1.0 - torch.sum(q[tube_idx] * WNT_grad_, dim=1)**2)
             cells_affected = WNT_x_dists < self.WNT_c
+            
+            # S4 = S4[:,None] * torch.exp(-d[tube_idx]/5)         #MAYBE CHANGE THIS BACK TO BE COMMENTED OUT
+            # S4  = torch.sum(S4, dim=1)
 
             # Can be commented in, if you want the potential to be as written in the paper
             # This allows cells to move such that they minimize their potential with regards to the WNT gradient
             # instead of just being turned such that their PCP is perpendicular to the WNT gradient
-            # S4         *= torch.exp(-d[tube_idx]/5)
             # S4          = torch.sum(S4[:,None] * z_mask[tube_idx], dim=1) / torch.sum(z_mask[tube_idx], dim=1)
             
             Vij_sum    -= self.WNT_str * torch.sum(cells_affected * S4)
@@ -607,8 +615,11 @@ class Simulation:
         # Applying the chemoattractant potential for the proximal recruitment of iREC cells
         if self.using_chemo_atr and self.chemo_atr_str > 0.0:
             polarity_mask = torch.any(l[:,1:], dim=1)
-            attractors_mask = torch.logical_or( (p_mask == 3) , (p_mask == 4) ) * polarity_mask                                               #(p_mask == 3) * l[:,3] == 0.0 * torch.any(l[:,1:], dim=1) 
-            attractees_mask = torch.logical_or( (p_mask_true == 6), ( (p_mask == 3) * (~polarity_mask) ) )
+            attractors_mask = torch.logical_or( (p_mask == 3) , (p_mask == 4) ) * polarity_mask                 #(p_mask == 3) * (l[:,3] == 0.0 * polarity_mask)
+            if self.chemo_attract_iREC:
+                attractees_mask = torch.logical_or( (p_mask_true == 6), ( (p_mask == 3) * (~polarity_mask) ) )
+            else:
+                attractees_mask = (p_mask_true == 6)
 
             if torch.sum(attractees_mask)  > 0 and torch.sum(attractors_mask) > 0:
                 chemo_pot = self.chemo_atr_pot(x=x, attractors_mask = attractors_mask, attractees_mask = attractees_mask)

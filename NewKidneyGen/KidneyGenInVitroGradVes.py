@@ -41,6 +41,7 @@ class Simulation:
         self.random_seed    = sim_dict['random_seed']
         self.avg_q          = sim_dict['avg_q']
         self.polar_initialization = sim_dict['polar_initialization']
+        self.schausers_wall_mask = sim_dict['schausers_wall_mask']
 
         self.all_tube       = False
         self.warming_up = False
@@ -245,7 +246,10 @@ class Simulation:
             # Inducing non-polar interaction between cell walls
             if self.tube_wall_str != None:
                 with torch.no_grad():
-                    wall_mask = torch.sum(pi * pj , dim = 2) < 0.0
+                    if self.schausers_wall_mask:
+                        wall_mask = (torch.sum(pi * pj , dim = 2) < 0.0) * (torch.sum(-dx * pj , dim = 2) < 0.0)
+                    else:
+                        wall_mask = torch.sum(pi * pj , dim = 2) < 0.0
                     wall_mask = torch.logical_and(wall_mask , REC_REC_mask)
                     lam[wall_mask] = torch.tensor([self.tube_wall_str, 0.0, 0.0, 0.0], device=self.device, dtype=self.dtype)
             

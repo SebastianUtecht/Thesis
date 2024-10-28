@@ -36,7 +36,7 @@ import pickle
 # data = np.load('data/playground_data_smaller.npy', allow_pickle=True)
 # p_mask, x, _, _ = data
 
-# general_visualize(x, p_mask, sphere=[[[0,-9,13],10]])
+# general_visualize(x, p_mask, sphere=[[[0, 2,6],1]])
 
 # x_range_mask = (x[:,0] > x_range[0]) *(x[:,0] < x_range[1])
 # p_mask = p_mask[x_range_mask]s
@@ -113,21 +113,21 @@ import pickle
 # print(conc)
 
 
-# folder = f"data/primed_MPC_4/data.npy"
+folder = f"vitro_data_temp/l1_l2/l1_0.8_l2_0.2/data.npy"
 
-# interactive_animate(folder, view_particles='polar')
+interactive_animate(folder, view_particles='polar')
 
 # folder = "data/diff_coef_test_4/diff_coef_2/data.npy"
 
 # interactive_plot(folder, timestep=-1, polar_idx=4)
-diff = 100
-str = 10
+# diff = 100
+# str = 10
 # folder = f"new_data/chemo_gridsearch/diff_{diff}_str{str}/data.npy"
 # folder = "data/INF_TEST_DELETE_AFTER/data.npy"
-uec_str = 0.2
-mpc_str = 0.1
+# uec_str = 0.2
+# mpc_str = 0.1
 
-folder = f"new_data/testing_final_3/data.npy"
+# folder = f"new_data/UEC_str_2/uec_rec_str0.3/data.npy"
 # folder = f'new_data/UEC_noise_grid/uec{uec_str}_mpc{mpc_str}/data.npy'
 # data = np.load(folder, allow_pickle=True)
 # folder = f"new_data/testing_loose_bounds_tot/testing_loose_bounds_14/data.npy"
@@ -136,7 +136,8 @@ folder = f"new_data/testing_final_3/data.npy"
 # p_mask = x[1020]
 # general_visualize(x, p_mask)
 
-animate_in_vivo(folder, extended_idx=True)  
+# folder = f"new_data/old_wnt/old_wnt_tight_bounds/data.npy"
+# animate_in_vivo(folder, extended_idx=True)  
 
 
 # data = np.load(folder, allow_pickle=True)

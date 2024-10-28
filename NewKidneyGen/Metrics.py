@@ -35,7 +35,7 @@ def find_true_neighbours(d, dx, seethru):
     z_mask = torch.cat(z_masks, dim=0)
     return z_mask
 
-def get_adj_lst(x, p_mask=None, seethru=0, k=50):
+def get_adj_lst(x, p_mask=None, seethru=0, k=10, p=None, p_threshold=0.0):
     d, idx = find_potential_neighbours(x, k=k)
     idx = torch.tensor(idx, dtype=torch.long, device=device)
     d = torch.tensor(d, dtype=torch.float, device=device)
@@ -52,6 +52,12 @@ def get_adj_lst(x, p_mask=None, seethru=0, k=50):
     m = torch.max(torch.sum(z_mask, dim=1)) + 1
     z_mask = z_mask[:, :m]
     idx = idx[:, :m]
+
+    if p is not None:
+        pi = p[:, None, :].expand(p.shape[0], idx.shape[1], 3)
+        pj = p[idx]
+        wall_mask = (torch.sum(pi * pj , dim = 2) < 0.0) * (torch.sum(-dx * pj , dim = 2) < 0.0)
+        z_mask[wall_mask] = 0
 
     polar_idx       = idx[p_mask == 1]
     return z_mask[p_mask == 1], polar_idx, p_mask #.detach().to("cpu").numpy()
