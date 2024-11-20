@@ -3,12 +3,13 @@ import vispy.scene
 from vispy.scene import visuals
 import sys
 from vispy import app
+import PIL
 
-def export_png(folder, timestep, name, alpha=10, view_particles=None):
+def vispy_export_png(folder, timestep, name, alpha=10, view_particles=None, cam_dist=100, polar_color=None):
 
     # Getting the data
     data = np.load(folder, allow_pickle=True)
-    mask_lst, x_lst, p_lst, q_lst = data
+    mask_lst, x_lst, p_lst, _ = data
 
     for p_mask in mask_lst:
         p_mask[p_mask == 2] = 1
@@ -20,9 +21,9 @@ def export_png(folder, timestep, name, alpha=10, view_particles=None):
 
     # Make a canvas and add simple view
     canvas = vispy.scene.SceneCanvas(bgcolor='white')
-    view = canvas.central_widget.add_view()    
+    view = canvas.central_widget.add_view()
     view.camera = "arcball"            
-    view.camera.distance = 150                   
+    view.camera.distance = cam_dist                   
 
     # Create scatter object and fill in the data
     scatter1 = visuals.Markers(scaling=True, alpha=alpha, spherical=True, light_ambient=0.1, light_color='white')
@@ -30,7 +31,10 @@ def export_png(folder, timestep, name, alpha=10, view_particles=None):
     scatter3 = visuals.Markers(scaling=True, alpha=alpha, spherical=True, light_ambient=0.1, light_color='white')
 
     scatter1.set_data(x_lst[timestep][mask_lst[timestep] == 0] , edge_width=0, face_color='blue', size=2.5)
-    scatter2.set_data(x_lst[timestep][mask_lst[timestep] == 1], edge_width=0, face_color='red', size=2.5)
+    if polar_color is not None:
+        scatter2.set_data(x_lst[timestep][mask_lst[timestep] == 1], edge_width=0, face_color=polar_color, size=2.5)
+    else:
+        scatter2.set_data(x_lst[timestep][mask_lst[timestep] == 1], edge_width=0, face_color='red', size=2.5)
     scatter3.set_data(polar_pos_lst[timestep] , edge_width=0, face_color='red', size=2.5)
 
     # Add the scatter object to the view
@@ -51,16 +55,25 @@ def export_png(folder, timestep, name, alpha=10, view_particles=None):
     img=canvas.render()
 
     # Use write_png to export your wonderful plot as png ! 
-    vispy.io.write_png(name + ".png",img)
+    vispy.io.image.imsave(name + ".png", img)
 
     return None
 
 
+seethru = 0
+noise   = 0.2
+ml0     = 0.8
+mconc   = 0.6
+folder = f"vitro_data/vitro_clusters_gridsearch/"
+folder += f"seethru_{seethru}_noise_{noise}_ml0_{ml0}_mconc_{mconc}/data.npy"
 
-start_folder= "data/vitro_gradves_grid/"
-conc_lst    = np.linspace(0.5, 0.99, 15)
-conc = conc_lst[11-9]
-print(1-conc)
+vispy_export_png(folder, timestep=13, name=f'plots/TEST_PLOT_BAYBEE', view_particles='polar', polar_color='darkorange')
 
-folder = start_folder + f'conc_{conc:.2f}/data.npy'
-export_png(folder, timestep=33 , name=f'plots/gradves_conc_{1-conc:.2f}_tot', view_particles=None)
+
+# start_folder= "data/vitro_gradves_grid/"
+# conc_lst    = np.linspace(0.5, 0.99, 15)
+# conc = conc_lst[11-9]
+# print(1-conc)
+
+# folder = start_folder + f'conc_{conc:.2f}/data.npy'
+# export_png(folder, timestep=33 , name=f'plots/gradves_conc_{1-conc:.2f}_tot', view_particles=None)

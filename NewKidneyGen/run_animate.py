@@ -113,9 +113,15 @@ import pickle
 # print(conc)
 
 
-folder = f"vitro_data_temp/l1_l2/l1_0.8_l2_0.2/data.npy"
-
+# folder = f"vitro_data_temp/l1_l2/l1_0.8_l2_0.2/data.npy"
+seethru = 1
+noise   = 0.25
+ml0     = 0.8
+mconc   = 0.8
+folder = f"vitro_data/vitro_clusters_gridsearch_big/"
+folder += f"seethru_{seethru}_noise_{noise}_ml0_{ml0}_mconc_{mconc}/data.npy"
 interactive_animate(folder, view_particles='polar')
+# interactive_plot(folder, timestep=13, view_particles='polar')
 
 # folder = "data/diff_coef_test_4/diff_coef_2/data.npy"
 

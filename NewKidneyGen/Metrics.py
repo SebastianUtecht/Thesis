@@ -104,7 +104,7 @@ def get_percolation(x, p_mask, seethru=0):
     perc_prob = max_cluster_size / n_polar_particles
     return perc_prob
 
-def get_num_clusters(x, p_mask,threshold = 10, seethru=0):
+def get_num_clusters(x, p_mask, threshold = 10, seethru=0, p=None):
     polar_z_mask, polar_adj_arr, p_mask = get_adj_lst(x, p_mask, seethru=seethru)
     edge_lst =  get_edge_lst(polar_adj_arr, p_mask = p_mask, polar_z_mask = polar_z_mask)
     graph = make_graph(edge_lst.detach().cpu().numpy())
