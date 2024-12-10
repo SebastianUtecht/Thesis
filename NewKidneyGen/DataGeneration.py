@@ -127,12 +127,12 @@ def make_random_sphere(N, non_polar_frac , radius=35):
     sphere_data = (mask, x, p, q)
     return sphere_data
 
-def make_2_spheres(N1, N2, N_np=0, x_trans=30, radius=1):
+def make_2_spheres(N1, N2, N_np=0, x_trans=20, y_trans=0, z_trans=0,  radius=1):
 
     p_mask1, x1, p1, q1 = make_random_sphere(N1, 0, radius=radius)
     p_mask2, x2, p2, q2 = make_random_sphere(N2, 0, radius=radius)
 
-    x2 = x2 + np.array([x_trans, 0,  0])
+    x2 = x2 + np.array([x_trans, y_trans, 0])
 
     x       = np.concatenate((x1, x2), axis=0)
     p_mask  = np.concatenate((p_mask1, p_mask2), axis=0) 

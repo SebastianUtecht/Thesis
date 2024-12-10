@@ -38,6 +38,7 @@ class Simulation:
         self.new_tube_wall= sim_dict['new_tube_wall']
         self.yield_every    = sim_dict['yield_every']
         self.bound_radius   = sim_dict['bound_radius']
+        self.z_range        = sim_dict['z_range']
         self.random_seed    = sim_dict['random_seed']
         self.avg_q          = sim_dict['avg_q']
         self.polar_initialization = sim_dict['polar_initialization']
@@ -110,6 +111,12 @@ class Simulation:
         v_add = torch.sum(v_add)
 
         return v_add
+    
+    def z_bound(self, pos):
+        # Added potential for all cells below or above the z_range
+        v_add = torch.where(torch.abs(pos[:,2]) > self.z_range, 10*torch.exp(pos[:,2]), 0.)
+        v_add = torch.where(v_add > 50., 50., v_add)
+        return torch.sum(v_add)
 
     def potential(self, x, p, q, p_mask, idx, d, tstep):
 
@@ -274,8 +281,10 @@ class Simulation:
         # Utilize spherical boundary conditions?
         if self.bound_radius:
             bc = self.sphere_bound(x)
+        elif self.z_range > 0:
+            bc = self.z_bound(x)
         else:
-            bc = 0.
+            bc = 0.0
 
         # Direct ABPs away from center of mass?
         if (not self.warming_up and not self.pre_polar) and self.gamma:

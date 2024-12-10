@@ -1,0 +1,47 @@
+{
+  "output_folder": "test_sphere_smaller",
+  "dt": 0.2,
+  "eta": 0.1,
+  "yield_steps": 1000,
+  "yield_every": 100,
+  "lambdas": [
+    0.3,
+    0.3,
+    0.5,
+    0.42,
+    0.8
+  ],
+  "pre_lambdas": [
+    0.3,
+    0.3,
+    1
+  ],
+  "crit_ves_size": 100,
+  "gamma": 0.1,
+  "gauss_multiplier": 0.0,
+  "warmup_dur": 3000,
+  "pre_polar_dur": 7200,
+  "vesicle_time": 0,
+  "seethru": 0,
+  "cell_wall_str": null,
+  "newnew_cellwall": false,
+  "vesicle_alpha": 0.0,
+  "tube_alpha": 0.0,
+  "betas": [
+    0.0,
+    0.0005
+  ],
+  "max_cells": 17500,
+  "prolif_delay": 0,
+  "bound_radius": null,
+  "abs_s2s3": true,
+  "tube_wall_str": null,
+  "new_tube_wall": false,
+  "init_k": 100,
+  "random_seed": 42,
+  "device": "cuda",
+  "dtype": "torch.float32",
+  "notes": "test_sphere_smaller",
+  "avg_q": false,
+  "polar_initialization": true
+}

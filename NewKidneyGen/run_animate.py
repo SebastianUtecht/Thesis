@@ -102,10 +102,10 @@ import pickle
 # folder = f'data/aug_cube_bound_tests_higher/data.npy'
 # animate_in_vivo(folder, extended_idx=True) 
 
+# folder = f'single_vesicle_data.npy'
 # data = np.load(folder, allow_pickle=True)
-# p_mask, x, _, _ = data
-# tstep = 500
-# general_visualize(x[tstep], p_mask[tstep], sphere=[[[0,5,0],6]])
+# p_mask, x, p, q = data
+# general_visualize(x, p_mask)
 
 
 # conc_lst = np.linspace(0.5, 0.99, 15)
@@ -114,14 +114,21 @@ import pickle
 
 
 # folder = f"vitro_data_temp/l1_l2/l1_0.8_l2_0.2/data.npy"
-seethru = 1
-noise   = 0.25
-ml0     = 0.8
-mconc   = 0.8
-folder = f"vitro_data/vitro_clusters_gridsearch_big/"
-folder += f"seethru_{seethru}_noise_{noise}_ml0_{ml0}_mconc_{mconc}/data.npy"
-interactive_animate(folder, view_particles='polar')
-# interactive_plot(folder, timestep=13, view_particles='polar')
+# seethru = 1
+# noise   = 0.25
+# ml0     = 0.8
+# mconc   = 0.8
+# folder = f"vitro_data/vitro_clusters_gridsearch_big/"
+# folder += f"seethru_{seethru}_noise_{noise}_ml0_{ml0}_mconc_{mconc}/data.npy"
+# folder = "vitro_data/gamma_pot_stuff/gamma_fusion/data.npy"
+# folder = "vitro_data/polar_init_seeds/100_cells/non_polar_seed_1/data.npy"
+# folder = "vitro_tests/standard_run/data.npy"
+# angle = 60
+# seed  = 2
+# folder = f"vitro_tests/angle_fusion_tests/angle_{angle}_seed_{seed}/data.npy"
+folder = "vitro_tests/24h_vesicles/data.npy"
+interactive_animate(folder, view_particles="polar")
+# interactive_plot(folder, timestep=490, view_particles='polar')
 
 # folder = "data/diff_coef_test_4/diff_coef_2/data.npy"
 
